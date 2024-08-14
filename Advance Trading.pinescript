@@ -1,0 +1,70 @@
+//@version=5
+indicator("AFT-Gentlegee", overlay=true)
+
+// Input parameters
+rsi_period = input.int(14, title="RSI Period")
+rsi_overbought = input.int(70, title="RSI Overbought Level")
+rsi_oversold = input.int(30, title="RSI Oversold Level")
+macd_fast_length = input.int(12, title="MACD Fast Length")
+macd_slow_length = input.int(26, title="MACD Slow Length")
+macd_signal_smoothing = input.int(9, title="MACD Signal Smoothing")
+trend_length = input.int(20, title="Trend Length")
+atr_period = input.int(14, title="ATR Period")
+atr_multiplier = input.float(2.0, title="ATR Multiplier")
+
+// Calculate RSI
+rsi = ta.rsi(close, rsi_period)
+
+// Calculate MACD
+[macd_line, signal_line, _] = ta.macd(close, macd_fast_length, macd_slow_length, macd_signal_smoothing)
+macd_histogram = macd_line - signal_line
+
+// Calculate trendlines
+basis = ta.sma(close, trend_length)
+dev = ta.stdev(close, trend_length)
+upper = basis + dev
+lower = basis - dev
+
+// Calculate ATR
+atr = ta.atr(atr_period)
+
+// Buy/Sell conditions based on RSI, MACD, and ATR
+buy_condition = ta.crossover(rsi, rsi_oversold) and macd_line > signal_line and close > lower and close > upper - atr_multiplier * atr
+sell_condition = ta.crossunder(rsi, rsi_overbought) and macd_line < signal_line and close < upper and close < lower + atr_multiplier * atr
+
+// Plot RSI and buy/sell signals
+plot(rsi, title="RSI", color=color.blue, linewidth=2)
+hline(rsi_overbought, "Overbought", color=color.red)
+hline(rsi_oversold, "Oversold", color=color.green)
+bgcolor(buy_condition ? color.new(color.green, 90) : na)
+bgcolor(sell_condition ? color.new(color.red, 90) : na)
+
+// Plot MACD
+plot(macd_line, title="MACD Line", color=color.blue)
+plot(signal_line, title="Signal Line", color=color.orange)
+plot(macd_histogram, title="MACD Histogram", color=color.red, style=plot.style_histogram)
+
+// Plot trendlines and support/resistance
+plot(upper, title="Upper Band", color=color.red)
+plot(lower, title="Lower Band", color=color.green)
+plot(basis, title="Basis Line", color=color.blue)
+
+// Generate alerts for buy/sell conditions
+alertcondition(buy_condition, title="Buy Signal", message="RSI, MACD, and ATR Buy signal generated")
+alertcondition(sell_condition, title="Sell Signal", message="RSI, MACD, and ATR Sell signal generated")
+
+// Plot buy/sell signals on the chart
+plotshape(series=buy_condition, location=location.belowbar, color=color.green, style=shape.labelup, title="Buy Signal", text="BUY")
+plotshape(series=sell_condition, location=location.abovebar, color=color.red, style=shape.labeldown, title="Sell Signal", text="SELL")
+
+// Support and resistance lines
+support = ta.valuewhen(ta.crossunder(rsi, rsi_oversold), low, 0)
+resistance = ta.valuewhen(ta.crossover(rsi, rsi_overbought), high, 0)
+plot(support, title="Support Level", color=color.green, style=plot.style_stepline)
+plot(resistance, title="Resistance Level", color=color.red, style=plot.style_stepline)
+
+// Role reversal levels
+role_reversal_support = ta.valuewhen(ta.crossover(close, support), support, 0)
+role_reversal_resistance = ta.valuewhen(ta.crossunder(close, resistance), resistance, 0)
+plot(role_reversal_support, title="Role Reversal Support", color=color.green, style=plot.style_cross)
+plot(role_reversal_resistance, title="Role Reversal Resistance", color=color.red, style=plot.style_cross)
